@@ -1,18 +1,22 @@
-import uuid
 from flask import Flask, request, jsonify
 import os
+import shutil
 from PIL import Image
 from ultralytics import YOLO
 import cloudinary
 from cloudinary.uploader import upload
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
 # Cloudinary Configuration
 cloudinary.config(
-    cloud_name="dsbpi1dsg",
-    api_key="945415891443865",
-    api_secret="W0rh0mYDvhM2GQTXv-_lVuoXwI4"
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
 )
 
 # Create necessary directories
@@ -39,22 +43,18 @@ def predict():
     except Exception:
         return jsonify({"error": "Invalid image format"}), 400
 
-    # Generate unique filename
-    # file_ext = file.filename.rsplit('.', 1)[-1].lower()
-    # filename = f"{uuid.uuid4()}.{file_ext}"
-    # file_path = os.path.join("uploads", filename)
-    # image.save(file_path)
-
     # Perform detection
     model.predict(image, project="runs/detect", save=True)
 
     # Find latest saved image in detection folder
-    detect_folder = max(os.listdir("runs/detect"), key=lambda x: os.path.getctime(os.path.join("runs/detect", x)))
-    detected_images = os.listdir(f"runs/detect/{detect_folder}")
+    try:
+        detect_folder = max(os.listdir("runs/detect"), key=lambda x: os.path.getctime(os.path.join("runs/detect", x)))
+        detected_images = os.listdir(f"runs/detect/{detect_folder}")
 
-    if not detected_images:
-        return jsonify({"error": "No detection output found"}), 500
-
+        if not detected_images:
+            return jsonify({"error": "No detection output found"}), 500
+    except ValueError:
+        return jsonify({"error": "Detection folder not found"}), 500
 
     detected_filename = detected_images[0]
     detected_file_path = os.path.join("runs/detect", detect_folder, detected_filename)
@@ -65,6 +65,12 @@ def predict():
         cloudinary_url = cloudinary_response.get("secure_url")
     except Exception as e:
         return jsonify({"error": "Failed to upload to Cloudinary", "details": str(e)}), 500
+
+    # Delete detection folder after returning the result
+    try:
+        shutil.rmtree(f"runs/detect/{detect_folder}")
+    except Exception as e:
+        print(f"Warning: Could not delete folder {detect_folder}. Error: {e}")
 
     # Return image URL
     return jsonify({"message": "Success!", "image_url": cloudinary_url})
