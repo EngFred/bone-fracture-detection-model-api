@@ -6,11 +6,15 @@ from ultralytics import YOLO
 import cloudinary
 from cloudinary.uploader import upload
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app)
 
 # Cloudinary Configuration
 cloudinary.config(
@@ -77,4 +81,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
