@@ -27,7 +27,7 @@ cloudinary.config(
 os.makedirs("runs", exist_ok=True)
 
 MODEL_PATH = "best.pt"
-model = YOLO(MODEL_PATH)
+model = YOLO(MODEL_PATH).to("cpu")
 
 @app.route('/')
 def home():
